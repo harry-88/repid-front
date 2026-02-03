@@ -28,12 +28,12 @@
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "https://github.com/yourusername/rapid-front.git"
+    "url": "https://github.com/harry-88/repid-front"
   },
   "bugs": {
-    "url": "https://github.com/yourusername/rapid-front/issues"
+    "url": "https://github.com/harry-88/repid-front/issues"
   },
-  "homepage": "https://github.com/yourusername/rapid-front#readme",
+  "homepage": "https://github.com/harry-88/repid-front#readme",
   "dependencies": {
     "@apidevtools/swagger-parser": "^10.1.0",
     "axios": "^1.6.5",
