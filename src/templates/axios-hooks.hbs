@@ -1,0 +1,56 @@
+import useAxios from 'axios-hooks';
+import axios from 'axios';
+
+{{#if schemas}}
+// Type Definitions
+{{#each schemas}}
+export interface {{name}} {
+{{#each properties}}
+{{@key}}{{#unless (lookup ../required @key)}}?{{/unless}}: {{getTypeScriptType this}};
+{{/each}}
+}
+
+{{/each}}
+{{/if}}
+
+// API Base URL
+const API_BASE_URL = process.env.REACT_APP_API_BASE_URL || 'https://api.example.com';
+
+{{#each endpoints}}
+/**
+* {{#if summary}}{{summary}}{{else}}{{functionName}}{{/if}}
+{{#if description}}
+* {{description}}
+{{/if}}
+*/
+export const use{{capitalize functionName}} = ({{#if parameters}}{{#each parameters}}{{name}}{{#unless
+required}}?{{/unless}}: {{type}}{{#unless @last}}, {{/unless}}{{/each}}{{/if}}) => {
+{{#if parameters}}
+let url = `${API_BASE_URL}{{path}}`;
+{{#each parameters}}
+{{#if (eq in 'path')}}
+url = url.replace('{{{name}}}', String({{name}}));
+{{/if}}
+{{/each}}
+
+const params = {
+{{#each parameters}}
+{{#if (eq in 'query')}}
+{{name}},
+{{/if}}
+{{/each}}
+};
+{{else}}
+const url = `${API_BASE_URL}{{path}}`;
+{{/if}}
+
+return useAxios<{{getResponseType responses}}>({
+    url,
+    method: '{{method}}',
+    {{#if parameters}}
+    params,
+    {{/if}}
+    });
+    };
+
+    {{/each}}

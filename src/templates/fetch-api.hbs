@@ -1,0 +1,92 @@
+import { useState, useCallback } from 'react';
+
+{{#if schemas}}
+// Type Definitions
+{{#each schemas}}
+export interface {{name}} {
+{{#each properties}}
+{{@key}}{{#unless (lookup ../required @key)}}?{{/unless}}: {{getTypeScriptType this}};
+{{/each}}
+}
+
+{{/each}}
+{{/if}}
+
+// API Base URL
+const API_BASE_URL = process.env.REACT_APP_API_BASE_URL || 'https://api.example.com';
+
+interface FetchState<T> {
+    data: T | null;
+    loading: boolean;
+    error: string | null;
+    }
+
+    {{#each endpoints}}
+    /**
+    * {{#if summary}}{{summary}}{{else}}{{functionName}}{{/if}}
+    {{#if description}}
+    * {{description}}
+    {{/if}}
+    */
+    export const use{{capitalize functionName}} = () => {
+    const [state, setState] = useState<FetchState<{{getResponseType responses}}>>({
+        data: null,
+        loading: false,
+        error: null,
+        });
+
+        const execute = useCallback(async ({{#if parameters}}{{#each parameters}}{{name}}{{#unless
+        required}}?{{/unless}}: {{type}}{{#unless @last}}, {{/unless}}{{/each}}{{#if requestBody}}{{#if parameters}},
+        {{/if}}data: {{requestBody.schema}}{{/if}}{{else}}{{#if requestBody}}data: {{requestBody.schema}}{{/if}}{{/if}})
+        => {
+        setState({ data: null, loading: true, error: null });
+
+        try {
+        {{#if parameters}}
+        let url = `${API_BASE_URL}{{path}}`;
+        {{#each parameters}}
+        {{#if (eq in 'path')}}
+        url = url.replace('{{{name}}}', String({{name}}));
+        {{/if}}
+        {{/each}}
+
+        const queryParams = new URLSearchParams();
+        {{#each parameters}}
+        {{#if (eq in 'query')}}
+        if ({{name}} !== undefined) queryParams.append('{{name}}', String({{name}}));
+        {{/if}}
+        {{/each}}
+
+        const queryString = queryParams.toString();
+        if (queryString) url += `?${queryString}`;
+        {{else}}
+        const url = `${API_BASE_URL}{{path}}`;
+        {{/if}}
+
+        const response = await fetch(url, {
+        method: '{{method}}',
+        headers: {
+        'Content-Type': 'application/json',
+        },
+        {{#if requestBody}}
+        body: JSON.stringify(data),
+        {{/if}}
+        });
+
+        if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+        }
+
+        const result = await response.json();
+        setState({ data: result, loading: false, error: null });
+        return result;
+        } catch (error: any) {
+        setState({ data: null, loading: false, error: error.message });
+        throw error;
+        }
+        }, []);
+
+        return { ...state, execute };
+        };
+
+        {{/each}}

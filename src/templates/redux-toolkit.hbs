@@ -1,0 +1,103 @@
+import { createSlice, createAsyncThunk, PayloadAction } from '@reduxjs/toolkit';
+import axios from 'axios';
+
+{{#if schemas}}
+// Type Definitions
+{{#each schemas}}
+export interface {{name}} {
+{{#each properties}}
+{{@key}}{{#unless (lookup ../required @key)}}?{{/unless}}: {{getTypeScriptType this}};
+{{/each}}
+}
+
+{{/each}}
+{{/if}}
+
+// API Base URL
+const API_BASE_URL = process.env.REACT_APP_API_BASE_URL || 'https://api.example.com';
+
+interface {{moduleName}}State {
+data: any;
+loading: boolean;
+error: string | null;
+}
+
+const initialState: {{moduleName}}State = {
+data: null,
+loading: false,
+error: null,
+};
+
+// Async Thunks
+{{#each endpoints}}
+export const {{functionName}} = createAsyncThunk(
+'{{../moduleName}}/{{functionName}}',
+async ({{#if parameters}}params: {
+{{#each parameters}}
+{{name}}{{#unless required}}?{{/unless}}: {{type}};
+{{/each}}
+{{#if requestBody}}
+data: {{requestBody.schema}};
+{{/if}}
+}{{else}}{{#if requestBody}}data: {{requestBody.schema}}{{else}}_{{/if}}{{/if}}) => {
+{{#if parameters}}
+let url = `${API_BASE_URL}{{path}}`;
+{{#each parameters}}
+{{#if (eq in 'path')}}
+url = url.replace('{{{name}}}', String(params.{{name}}));
+{{/if}}
+{{/each}}
+
+const queryParams = {
+{{#each parameters}}
+{{#if (eq in 'query')}}
+{{name}}: params.{{name}},
+{{/if}}
+{{/each}}
+};
+{{else}}
+const url = `${API_BASE_URL}{{path}}`;
+{{/if}}
+
+const response = await axios.{{toLowerCase method}}<{{getResponseType responses}}>(
+    url{{#if requestBody}}, {{#if parameters}}params.data{{else}}data{{/if}}{{/if}}{{#if parameters}}, { params:
+    queryParams }{{/if}}
+    );
+    return response.data;
+    }
+    );
+
+    {{/each}}
+
+    // Slice
+    const {{lowerCase moduleName}}Slice = createSlice({
+    name: '{{moduleName}}',
+    initialState,
+    reducers: {
+    reset: (state) => {
+    state.data = null;
+    state.loading = false;
+    state.error = null;
+    },
+    },
+    extraReducers: (builder) => {
+    {{#each endpoints}}
+    builder
+    .addCase({{functionName}}.pending, (state) => {
+    state.loading = true;
+    state.error = null;
+    })
+    .addCase({{functionName}}.fulfilled, (state, action) => {
+    state.loading = false;
+    state.data = action.payload;
+    })
+    .addCase({{functionName}}.rejected, (state, action) => {
+    state.loading = false;
+    state.error = action.error.message || 'An error occurred';
+    }){{#unless @last}};{{/unless}}
+    {{/each}}
+    },
+    });
+
+    export const { reset: reset{{moduleName}} } = {{lowerCase moduleName}}Slice.actions;
+    export default {{lowerCase moduleName}}Slice.reducer;

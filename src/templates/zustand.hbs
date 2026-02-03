@@ -1,0 +1,71 @@
+import { create } from 'zustand';
+import axios from 'axios';
+
+{{#if schemas}}
+// Type Definitions
+{{#each schemas}}
+export interface {{name}} {
+  {{#each properties}}
+  {{@key}}{{#unless (lookup ../required @key)}}?{{/unless}}: {{getTypeScriptType this}};
+  {{/each}}
+}
+
+{{/each}}
+{{/if}}
+
+// API Base URL - Update this with your actual API base URL
+const API_BASE_URL = process.env.REACT_APP_API_BASE_URL || 'https://api.example.com';
+
+interface {{moduleName}}State {
+  // State
+  data: any;
+  loading: boolean;
+  error: string | null;
+
+  // Actions
+{{#each endpoints}}
+  {{functionName}}: ({{#if parameters}}{{#each parameters}}{{name}}{{#unless required}}?{{/unless}}: {{type}}{{#unless @last}}, {{/unless}}{{/each}}{{#if requestBody}}{{#if parameters}}, {{/if}}data: {{requestBody.schema}}{{/if}}{{else}}{{#if requestBody}}data: {{requestBody.schema}}{{/if}}{{/if}}) => Promise<void>;
+{{/each}}
+}
+
+export const use{{moduleName}}Store = create<{{moduleName}}State>((set) => ({
+  // Initial State
+  data: null,
+  loading: false,
+  error: null,
+
+  // Actions
+{{#each endpoints}}
+  {{functionName}}: async ({{#if parameters}}{{#each parameters}}{{name}}{{#unless required}}?{{/unless}}{{#unless @last}}, {{/unless}}{{/each}}{{#if requestBody}}{{#if parameters}}, {{/if}}data{{/if}}{{else}}{{#if requestBody}}data{{/if}}{{/if}}) => {
+    set({ loading: true, error: null });
+    try {
+      {{#if parameters}}
+      // Build URL with path and query parameters
+      let url = `${API_BASE_URL}{{path}}`;
+      {{#each parameters}}
+      {{#if (eq in 'path')}}
+      url = url.replace('{{{name}}}', String({{name}}));
+      {{/if}}
+      {{/each}}
+      
+      const params = {
+        {{#each parameters}}
+        {{#if (eq in 'query')}}
+        {{name}}{{#unless required}}{{/unless}},
+        {{/if}}
+        {{/each}}
+      };
+      {{else}}
+      const url = `${API_BASE_URL}{{path}}`;
+      {{/if}}
+
+      const response = await axios.{{toLowerCase method}}<{{getResponseType responses}}>(url{{#if requestBody}}, data{{/if}}{{#if parameters}}, { params }{{/if}});
+      set({ data: response.data, loading: false });
+    } catch (error: any) {
+      set({ error: error.message || 'An error occurred', loading: false });
+      throw error;
+    }
+  },
+
+{{/each}}
+}));
